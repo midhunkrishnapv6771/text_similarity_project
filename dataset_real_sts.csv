@@ -1,0 +1,21 @@
+id,category,sentence_a,sentence_b,expected
+1,Aviation,A plane is taking off from the airport runway.,An airplane is ascending into the sky from the tarmac.,Similar
+2,Aviation,The flight was delayed due to heavy rain.,The aircraft departed on time without any issues.,Not Similar
+3,Culinary,A chef is chopping fresh vegetables in a busy kitchen.,A cook is preparing food for dinner on the stove.,Similar
+4,Culinary,She ordered a cold lemonade on a hot summer afternoon.,He baked a hot chocolate cake for the birthday party.,Not Similar
+5,Sports,A young boy is playing soccer in the park.,A child is kicking a football on the green field.,Similar
+6,Sports,A woman is reading a book under a shady tree.,A athlete won the gold medal in the 100m sprint.,Not Similar
+7,Markets,The stock market experienced a significant surge in trading volume today.,Financial indices rallied sharply as investor sentiment turned bullish.,Similar
+8,Markets,Interest rates remained unchanged after the central bank meeting.,The price of fresh apples increased at the local grocery store.,Not Similar
+9,Technology,Artificial intelligence algorithms are transforming healthcare diagnostics.,Machine learning models are improving medical disease detection.,Similar
+10,Technology,The smartphone screen cracked when it dropped on concrete.,A renewable energy solar panel was installed on the roof.,Not Similar
+11,Automotive,The red sports car accelerated quickly down the highway.,An automobile drove fast along the expressway.,Similar
+12,Automotive,A electric bicycle was parked outside the coffee shop.,The commercial freight train carried heavy cargo across the state.,Not Similar
+13,Weather,Heavy snowfall covered the mountain pass during the winter storm.,Blizzard conditions dumped thick snow across the alpine road.,Similar
+14,Weather,Bright sunshine warmed the ocean beach all afternoon.,A strong earthquake shook the coastal city at night.,Not Similar
+15,Education,Students gathered in the auditorium for the graduation ceremony.,Pupils assembled in the main hall for the diploma event.,Similar
+16,Education,The professor published a research paper on quantum physics.,A toddler learned how to draw colored circles with crayons.,Not Similar
+17,Music,The orchestra performed a breathtaking classical symphony.,A group of musicians played a beautiful orchestral piece.,Similar
+18,Music,The guitarist tuned his acoustic instrument before the concert.,A painter mixed blue and yellow oil colors on the canvas.,Not Similar
+19,Health,Regular cardiovascular exercise improves heart health and endurance.,Daily aerobic workouts boost cardiac function and stamina.,Similar
+20,Health,The pharmacy dispensed prescription medication to the patient.,A construction crew built a new suspension bridge across the river.,Not Similar
