@@ -1,27 +1,53 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Semantic Text Similarity Engine</title>
+    <title>Semantic Text Similarity AI Platform</title>
+    <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <!-- CSS Stylesheet (Flask & Direct File Compatibility) -->
+    <link rel="stylesheet" href="../static/css/style.css">
+    <script>
+        // Automatic Flask / Direct File Path Fix
+        try {
+            if (window.location.protocol.startsWith('http')) {
+                // If running on Flask server
+                const link = document.createElement('link');
+                link.rel = 'stylesheet';
+                link.href = '/static/css/style.css';
+                document.head.appendChild(link);
+            }
+        } catch (e) {}
+    </script>
 </head>
 <body>
+    <div class="background-glow"></div>
     <div class="app-container">
         <!-- Header -->
         <header class="app-header">
             <div class="header-brand">
-                <div class="logo-icon">⚡</div>
+                <div class="logo-box">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="18" cy="5" r="3"></circle>
+                        <circle cx="6" cy="12" r="3"></circle>
+                        <circle cx="18" cy="19" r="3"></circle>
+                        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                        <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                    </svg>
+                </div>
                 <div>
-                    <h1>Semantic Text Similarity</h1>
-                    <p class="subtitle">Real-time NLP Embedding Benchmark & Evaluation Platform</p>
+                    <div class="title-row">
+                        <h1>Semantic Text Similarity</h1>
+                        <span class="status-pill"><span class="pulse-dot"></span> Engine Online</span>
+                    </div>
+                    <p class="subtitle">High-Performance Vector Embedding Benchmark & Real-time NLP Platform</p>
                 </div>
             </div>
             <div class="header-actions">
-                <button id="themeToggleBtn" class="icon-btn" title="Toggle Dark/Light Mode" aria-label="Toggle Dark Mode">
+                <button id="themeToggleBtn" class="icon-btn" title="Toggle Light / Dark Theme" aria-label="Toggle Theme">
                     <span class="theme-icon">🌙</span>
                 </button>
             </div>
@@ -30,75 +56,100 @@
         <!-- Main Workspace -->
         <main class="main-content">
             <form id="compareForm" class="compare-form" novalidate>
-                <!-- Controls Toolbar -->
+                <!-- Controls & Preset Chips Toolbar -->
                 <div class="toolbar">
-                    <div class="sample-picker">
-                        <label for="exampleSelect">Try Example Pair:</label>
-                        <select id="exampleSelect" class="form-select">
-                            <option value="" disabled selected>-- Select Preset Pair --</option>
-                            <option value="1">1. High Similarity: Plane taking off</option>
-                            <option value="2">2. Medium Similarity: Cooking food</option>
-                            <option value="3">3. Low Similarity: Different activities</option>
-                            <option value="4">4. Complex Paraphrase: Financial market</option>
-                        </select>
+                    <div class="preset-section">
+                        <span class="toolbar-label">Quick Preset Test:</span>
+                        <div class="preset-chips">
+                            <button type="button" class="chip-btn" data-preset="1">✈️ Aviation</button>
+                            <button type="button" class="chip-btn" data-preset="2">🍳 Culinary</button>
+                            <button type="button" class="chip-btn" data-preset="3">⚽ Sports</button>
+                            <button type="button" class="chip-btn" data-preset="4">📈 Markets</button>
+                        </div>
                     </div>
 
-                    <button type="button" id="swapBtn" class="btn btn-secondary icon-text-btn" title="Swap Sentence A and Sentence B">
-                        <span>🔄 Swap Sentences</span>
+                    <button type="button" id="swapBtn" class="btn btn-secondary icon-text-btn" title="Swap Sentence A and B">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M7 16V4M7 4L3 8M7 4L11 8M17 8V20M17 20L21 16M17 20L13 16"></path>
+                        </svg>
+                        <span>Swap Texts</span>
                     </button>
                 </div>
 
                 <!-- Input Textareas Grid -->
                 <div class="input-grid">
-                    <!-- Sentence A -->
+                    <!-- Sentence A Card -->
                     <div class="input-card">
                         <div class="input-card-header">
-                            <label for="sentenceA">Sentence A</label>
+                            <div class="card-title">
+                                <span class="input-badge badge-a">Sentence A</span>
+                            </div>
                             <span class="char-count" id="charCountA">0 chars</span>
                         </div>
                         <textarea 
                             id="sentenceA" 
                             name="sentence_a" 
                             class="form-control" 
-                            rows="5" 
+                            rows="4" 
                             placeholder="Enter or paste the first sentence here..." 
-                            required></textarea>
+                            required>A plane is taking off from the airport runway.</textarea>
                     </div>
 
-                    <!-- Sentence B -->
+                    <!-- Sentence B Card -->
                     <div class="input-card">
                         <div class="input-card-header">
-                            <label for="sentenceB">Sentence B</label>
+                            <div class="card-title">
+                                <span class="input-badge badge-b">Sentence B</span>
+                            </div>
                             <span class="char-count" id="charCountB">0 chars</span>
                         </div>
                         <textarea 
                             id="sentenceB" 
                             name="sentence_b" 
                             class="form-control" 
-                            rows="5" 
+                            rows="4" 
                             placeholder="Enter or paste the second sentence here..." 
-                            required></textarea>
+                            required>An airplane is ascending into the sky from the tarmac.</textarea>
                     </div>
                 </div>
 
-                <!-- Model Selection & Submission Row -->
+                <!-- Model Selection & Compare Row -->
                 <div class="config-row">
                     <div class="model-selection">
-                        <span class="model-label">Embedding Model Engine:</span>
+                        <span class="model-label">Select Embedding Engine:</span>
                         <div class="radio-group">
                             <label class="radio-card">
                                 <input type="radio" name="model" value="local" checked>
-                                <div class="radio-content">
-                                    <span class="radio-title">Local Model</span>
-                                    <span class="radio-desc">Open-Source Sentence-Transformers (all-MiniLM-L6-v2)</span>
+                                <div class="radio-card-body">
+                                    <div class="radio-header">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <rect x="4" y="4" width="16" height="16" rx="2"></rect>
+                                            <rect x="9" y="9" width="6" height="6"></rect>
+                                            <line x1="9" y1="1" x2="9" y2="4"></line>
+                                            <line x1="15" y1="1" x2="15" y2="4"></line>
+                                            <line x1="9" y1="20" x2="9" y2="23"></line>
+                                            <line x1="15" y1="20" x2="15" y2="23"></line>
+                                            <line x1="20" y1="9" x2="23" y2="9"></line>
+                                            <line x1="20" y1="15" x2="23" y2="15"></line>
+                                            <line x1="1" y1="9" x2="4" y2="9"></line>
+                                            <line x1="1" y1="15" x2="4" y2="15"></line>
+                                        </svg>
+                                        <span class="radio-title">Local CPU Model</span>
+                                    </div>
+                                    <span class="radio-desc">Sentence-Transformers (all-MiniLM-L6-v2) &bull; 384-D &bull; 3ms</span>
                                 </div>
                             </label>
 
                             <label class="radio-card">
                                 <input type="radio" name="model" value="api">
-                                <div class="radio-content">
-                                    <span class="radio-title">Gemini API</span>
-                                    <span class="radio-desc">Google Cloud Gemini Embedding API (429 Failover)</span>
+                                <div class="radio-card-body">
+                                    <div class="radio-header">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path>
+                                        </svg>
+                                        <span class="radio-title">Google Gemini API</span>
+                                    </div>
+                                    <span class="radio-desc">Gemini Cloud Embeddings &bull; 768-D &bull; Dynamic 429 Failover</span>
                                 </div>
                             </label>
                         </div>
@@ -106,10 +157,10 @@
 
                     <div class="submit-action">
                         <button type="submit" id="compareBtn" class="btn btn-primary btn-large">
-                            <span class="btn-text">Compare Sentences</span>
+                            <span class="btn-text">Compute Vector Similarity</span>
                             <span class="spinner hidden" id="loadingSpinner"></span>
                         </button>
-                        <span class="keyboard-hint">Shortcut: <kbd>Ctrl</kbd> + <kbd>Enter</kbd></span>
+                        <span class="keyboard-hint">Press <kbd>Ctrl</kbd> + <kbd>Enter</kbd> to run</span>
                     </div>
                 </div>
             </form>
@@ -124,43 +175,78 @@
             <section id="resultsSection" class="results-container hidden">
                 <div class="results-card">
                     <div class="results-header">
-                        <h2>Semantic Evaluation Result</h2>
+                        <div class="results-header-title">
+                            <h2>Vector Similarity Results</h2>
+                            <span class="result-timestamp" id="resultTimestamp">Just now</span>
+                        </div>
                         <button id="copyResultBtn" class="btn btn-secondary btn-sm" title="Copy Result to Clipboard">
-                            📋 Copy Result
+                            📋 Copy Report
                         </button>
                     </div>
 
                     <div class="results-grid">
-                        <!-- Score Display -->
+                        <!-- Score Ring Gauge -->
                         <div class="metric-card score-card">
-                            <span class="metric-title">Similarity Score</span>
-                            <div class="score-display">
-                                <span id="scorePct" class="score-value">0.00%</span>
+                            <span class="metric-title">Cosine Similarity</span>
+                            <div class="gauge-wrapper">
+                                <div class="score-display">
+                                    <span id="scorePct" class="score-value">0.00%</span>
+                                    <span class="score-subtext">Vector Cosine Distance</span>
+                                </div>
                                 <div class="progress-bar-bg">
                                     <div id="scoreProgressBar" class="progress-bar-fill" style="width: 0%;"></div>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Prediction Display -->
+                        <!-- Prediction Badge -->
                         <div class="metric-card">
-                            <span class="metric-title">Prediction</span>
+                            <span class="metric-title">Binary Class Prediction</span>
                             <div class="prediction-badge-wrapper">
                                 <span id="predictionBadge" class="badge badge-similar">--</span>
-                                <span class="threshold-note">Threshold: &ge; {{ threshold_pct }}</span>
+                                <span class="threshold-note">Decision Cutoff: &ge; <span id="thresholdDisplay">70%</span></span>
                             </div>
                         </div>
 
-                        <!-- Execution Mode Display -->
+                        <!-- Execution Mode -->
                         <div class="metric-card">
-                            <span class="metric-title">Execution Mode</span>
+                            <span class="metric-title">Active Embedding Engine</span>
                             <span id="executionModeTag" class="info-tag">--</span>
                         </div>
 
-                        <!-- Latency Display -->
+                        <!-- Latency -->
                         <div class="metric-card">
-                            <span class="metric-title">Latency</span>
+                            <span class="metric-title">Inference Speed</span>
                             <span id="latencyTag" class="info-tag latency-tag">-- ms</span>
+                        </div>
+                    </div>
+
+                    <!-- Interactive Vector Geometry Graphic -->
+                    <div class="vector-diagram-card">
+                        <div class="diagram-header">
+                            <span class="diagram-title">🌐 Vector Geometry Space (768-D / 384-D Manifold)</span>
+                        </div>
+                        <div class="vector-graphic-box">
+                            <svg width="100%" height="90" viewBox="0 0 600 90" preserveAspectRatio="xMidYMid meet">
+                                <!-- Vector A Line -->
+                                <line x1="50" y1="65" x2="250" y2="25" stroke="#3b82f6" stroke-width="3" stroke-linecap="round" />
+                                <circle cx="250" cy="25" r="6" fill="#3b82f6" />
+                                <text x="45" y="80" fill="#3b82f6" font-size="11" font-weight="600">Vector A</text>
+
+                                <!-- Vector B Line -->
+                                <line x1="50" y1="65" x2="350" y2="35" stroke="#8b5cf6" stroke-width="3" stroke-linecap="round" />
+                                <circle cx="350" cy="35" r="6" fill="#8b5cf6" />
+                                <text x="355" y="50" fill="#8b5cf6" font-size="11" font-weight="600">Vector B</text>
+
+                                <!-- Cosine Angle Arc -->
+                                <path d="M 100 55 A 40 40 0 0 1 115 58" fill="none" stroke="#10b981" stroke-width="2.5" stroke-dasharray="3,3" />
+                                <text x="125" y="65" fill="#10b981" font-size="12" font-weight="700">Cosine Angle θ</text>
+
+                                <!-- Dot Product Formula -->
+                                <rect x="440" y="20" width="145" height="50" rx="8" fill="rgba(59, 130, 246, 0.08)" stroke="rgba(59, 130, 246, 0.2)" />
+                                <text x="512" y="42" text-anchor="middle" fill="currentColor" font-size="11" font-weight="600">cos(θ) = (A · B) / (||A|| ||B||)</text>
+                                <text x="512" y="58" text-anchor="middle" fill="#10b981" font-size="11" font-weight="700" id="svgScoreText">Score: 0.00</text>
+                            </svg>
                         </div>
                     </div>
                 </div>
@@ -169,10 +255,21 @@
 
         <!-- Footer -->
         <footer class="app-footer">
-            <p>Dual Mode Platform: <strong>Flask Web App Interface</strong> &bull; <strong>Research Evaluation Engine</strong> (<code>evaluator.py</code>)</p>
+            <p>Dual Mode Platform: <strong>Flask Web Application Interface</strong> &bull; <strong>Research Evaluation Engine</strong> (<code>evaluator.py</code>)</p>
+            <p class="copyright">&copy; 2026 Semantic Text Similarity Engine &bull; Developed by <a href="https://github.com/midhunkrishnapv6771" target="_blank" rel="noopener">@midhunkrishnapv6771</a></p>
         </footer>
     </div>
 
-    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <!-- JS Script (Flask & Direct File Compatibility) -->
+    <script src="../static/js/app.js"></script>
+    <script>
+        try {
+            if (window.location.protocol.startsWith('http')) {
+                const script = document.createElement('script');
+                script.src = '/static/js/app.js';
+                document.body.appendChild(script);
+            }
+        } catch (e) {}
+    </script>
 </body>
 </html>

@@ -1,7 +1,7 @@
 /* ==========================================================================
    Semantic Text Similarity Web App - JavaScript Controller
-   Features: AJAX Comparison, Dark Mode, Character Counter, Example Loader,
-             Sentence Swapping, Clipboard Copy, Keyboard Shortcuts
+   Features: AJAX Comparison, Dark Mode, Character Counter, Preset Chips,
+             Sentence Swapping, Clipboard Copy, Keyboard Shortcuts, Vector SVG
    ========================================================================== */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -15,7 +15,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const charCountA = document.getElementById('charCountA');
     const charCountB = document.getElementById('charCountB');
     
-    const exampleSelect = document.getElementById('exampleSelect');
     const swapBtn = document.getElementById('swapBtn');
     const compareBtn = document.getElementById('compareBtn');
     const loadingSpinner = document.getElementById('loadingSpinner');
@@ -30,6 +29,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const executionModeTag = document.getElementById('executionModeTag');
     const latencyTag = document.getElementById('latencyTag');
     const copyResultBtn = document.getElementById('copyResultBtn');
+    const svgScoreText = document.getElementById('svgScoreText');
+    const resultTimestamp = document.getElementById('resultTimestamp');
 
     // Preset Example Pairs
     const examplePairs = {
@@ -58,13 +59,13 @@ document.addEventListener('DOMContentLoaded', () => {
     setTheme(savedTheme);
 
     themeToggleBtn.addEventListener('click', () => {
-        const currentTheme = document.body.getAttribute('data-theme') || 'light';
+        const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
         const newTheme = currentTheme === 'light' ? 'dark' : 'light';
         setTheme(newTheme);
     });
 
     function setTheme(theme) {
-        document.body.setAttribute('data-theme', theme);
+        document.documentElement.setAttribute('data-theme', theme);
         localStorage.setItem('theme', theme);
         themeIcon.textContent = theme === 'dark' ? '☀️' : '🌙';
     }
@@ -82,17 +83,19 @@ document.addEventListener('DOMContentLoaded', () => {
     updateCharCounts();
 
     /* --------------------------------------------------------------------------
-       3. Example Selector & Sentence Swap
+       3. Preset Chips & Sentence Swap
        -------------------------------------------------------------------------- */
-    exampleSelect.addEventListener('change', (e) => {
-        const selectedId = e.target.value;
-        if (examplePairs[selectedId]) {
-            sentenceAInput.value = examplePairs[selectedId].a;
-            sentenceBInput.value = examplePairs[selectedId].b;
-            updateCharCounts();
-            hideError();
-            resultsSection.classList.add('hidden');
-        }
+    document.querySelectorAll('.chip-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const presetId = btn.getAttribute('data-preset');
+            if (examplePairs[presetId]) {
+                sentenceAInput.value = examplePairs[presetId].a;
+                sentenceBInput.value = examplePairs[presetId].b;
+                updateCharCounts();
+                hideError();
+                resultsSection.classList.add('hidden');
+            }
+        });
     });
 
     swapBtn.addEventListener('click', () => {
@@ -179,6 +182,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
         executionModeTag.textContent = data.execution_mode;
         latencyTag.textContent = `${data.latency_ms} ms`;
+        
+        if (svgScoreText) {
+            svgScoreText.textContent = `Score: ${data.score.toFixed(4)}`;
+        }
+
+        if (resultTimestamp) {
+            const now = new Date();
+            resultTimestamp.textContent = `Evaluated at ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
+        }
 
         resultsSection.classList.remove('hidden');
         resultsSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -188,11 +200,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (isLoading) {
             compareBtn.disabled = true;
             loadingSpinner.classList.remove('hidden');
-            compareBtn.querySelector('.btn-text').textContent = "Processing Embeddings...";
+            compareBtn.querySelector('.btn-text').textContent = "Computing Embeddings...";
         } else {
             compareBtn.disabled = false;
             loadingSpinner.classList.add('hidden');
-            compareBtn.querySelector('.btn-text').textContent = "Compare Sentences";
+            compareBtn.querySelector('.btn-text').textContent = "Compute Vector Similarity";
         }
     }
 
