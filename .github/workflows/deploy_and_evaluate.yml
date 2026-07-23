@@ -65,8 +65,12 @@ jobs:
             echo "[+] Running PyTorch Local Model Single Pair Test on 7GB RAM GitHub Runner..."
             python semantic_local.py --text1 "$SENTENCE_A" --text2 "$SENTENCE_B"
           else
-            echo "[+] Executing evaluation benchmark with $SAMPLE_SIZE test samples..."
-            python evaluator.py --sample $SAMPLE_SIZE
+            echo "[+] Step 1: Running Local PyTorch Model ($SAMPLE_SIZE samples)..."
+            python semantic_local.py --sample $SAMPLE_SIZE
+            echo "[+] Step 2: Running Gemini API Model ($SAMPLE_SIZE samples)..."
+            python semantic_api.py --sample $SAMPLE_SIZE
+            echo "[+] Step 3: Generating Comprehensive Benchmark Report..."
+            python evaluator.py
           fi
 
       - name: Upload Results Artifacts
@@ -74,6 +78,8 @@ jobs:
         with:
           name: sts-evaluation-report
           path: |
+            results_local.csv
+            results_api.csv
             results_comparison.csv
             comparison_report.md
           retention-days: 7  # Auto-cleans old artifacts to save GitHub storage
