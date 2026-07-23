@@ -200,7 +200,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     })
                 });
 
-                const data = await response.json();
+                let data;
+                try {
+                    data = await response.json();
+                } catch (jsonErr) {
+                    if (!response.ok) {
+                        throw new Error(`Server Error (${response.status} ${response.statusText}): The server crashed or ran out of memory (512MB limit on Render). Please switch to 'Google Gemini API' mode.`);
+                    }
+                    throw new Error("Server returned invalid non-JSON response.");
+                }
 
                 if (!response.ok || !data.success) {
                     throw new Error(data.error || "Failed to calculate semantic similarity.");
@@ -344,7 +352,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     body: formData
                 });
 
-                const data = await response.json();
+                let data;
+                try {
+                    data = await response.json();
+                } catch (jsonErr) {
+                    if (!response.ok) {
+                        throw new Error(`Server Error (${response.status} ${response.statusText}): The server crashed or ran out of memory (512MB limit on Render). Please switch to 'Gemini API Batch' mode.`);
+                    }
+                    throw new Error("Server returned invalid non-JSON response.");
+                }
 
                 if (!response.ok || !data.success) {
                     throw new Error(data.error || "Batch processing failed.");
