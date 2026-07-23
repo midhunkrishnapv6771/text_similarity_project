@@ -1,0 +1,57 @@
+name: Live PyTorch Backend Tunnel (6-Hour GitHub Runner)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  run-live-backend:
+    name: Run Live PyTorch Flask Server (7GB RAM Runner)
+    runs-on: ubuntu-latest
+    timeout-minutes: 360  # Stays alive for up to 6 hours
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: Cache HuggingFace Models
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: ${{ runner.os }}-hf-${{ hashFiles('requirements.txt') }}
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Pre-load PyTorch Model into Memory
+        run: |
+          echo "[+] Pre-loading PyTorch all-MiniLM-L6-v2 model on 7GB RAM runner..."
+          python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')"
+
+      - name: Start Live Flask Backend & Cloudflare Tunnel
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          PORT: 5000
+        run: |
+          echo "[+] Starting Flask app server in background on port 5000..."
+          python app.py &
+          sleep 3
+
+          echo "[+] Downloading Cloudflare Tunnel (cloudflared)..."
+          wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+          sudo dpkg -i cloudflared-linux-amd64.deb
+
+          echo "[+] Launching Live Cloudflare Public Tunnel..."
+          echo "=========================================================================="
+          echo "  LIVE PUBLIC BACKEND API URL WILL APPEAR BELOW:"
+          echo "=========================================================================="
+          
+          # Start tunnel and stream output to log
+          cloudflared tunnel --url http://localhost:5000
