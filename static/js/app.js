@@ -239,4 +239,169 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error("Clipboard copy failed:", err);
         });
     });
+
+    /* --------------------------------------------------------------------------
+       8. Tab Navigation & Secure CSV File Upload
+       -------------------------------------------------------------------------- */
+    const tabSingleMode = document.getElementById('tabSingleMode');
+    const tabBatchMode = document.getElementById('tabBatchMode');
+    const uploadForm = document.getElementById('uploadForm');
+
+    const uploadDropzone = document.getElementById('uploadDropzone');
+    const browseFileBtn = document.getElementById('browseFileBtn');
+    const datasetFileInput = document.getElementById('datasetFileInput');
+    const selectedFileName = document.getElementById('selectedFileName');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const uploadSpinner = document.getElementById('uploadSpinner');
+
+    const batchResultsSection = document.getElementById('batchResultsSection');
+    const batchCount = document.getElementById('batchCount');
+    const batchTimestamp = document.getElementById('batchTimestamp');
+    const batchAvgLatency = document.getElementById('batchAvgLatency');
+    const batchTableBody = document.getElementById('batchTableBody');
+
+    if (tabSingleMode && tabBatchMode) {
+        tabSingleMode.addEventListener('click', () => {
+            tabSingleMode.classList.add('active');
+            tabBatchMode.classList.remove('active');
+            compareForm.classList.remove('hidden');
+            uploadForm.classList.add('hidden');
+            batchResultsSection.classList.add('hidden');
+            hideError();
+        });
+
+        tabBatchMode.addEventListener('click', () => {
+            tabBatchMode.classList.add('active');
+            tabSingleMode.classList.remove('active');
+            uploadForm.classList.remove('hidden');
+            compareForm.classList.add('hidden');
+            resultsSection.classList.add('hidden');
+            hideError();
+        });
+    }
+
+    if (browseFileBtn && datasetFileInput) {
+        browseFileBtn.addEventListener('click', () => datasetFileInput.click());
+        uploadDropzone.addEventListener('click', (e) => {
+            if (e.target !== browseFileBtn) datasetFileInput.click();
+        });
+
+        datasetFileInput.addEventListener('change', () => {
+            if (datasetFileInput.files.length > 0) {
+                selectedFileName.textContent = `Selected: ${datasetFileInput.files[0].name}`;
+                selectedFileName.classList.remove('hidden');
+            }
+        });
+
+        // Drag and drop handlers
+        ['dragenter', 'dragover'].forEach(eventName => {
+            uploadDropzone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                uploadDropzone.classList.add('dragover');
+            }, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            uploadDropzone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                uploadDropzone.classList.remove('dragover');
+            }, false);
+        });
+
+        uploadDropzone.addEventListener('drop', (e) => {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            if (files.length > 0) {
+                datasetFileInput.files = files;
+                selectedFileName.textContent = `Selected: ${files[0].name}`;
+                selectedFileName.classList.remove('hidden');
+            }
+        });
+    }
+
+    /* --------------------------------------------------------------------------
+       9. Batch CSV Upload Submission
+       -------------------------------------------------------------------------- */
+    if (uploadForm) {
+        uploadForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            hideError();
+
+            if (!datasetFileInput.files || datasetFileInput.files.length === 0) {
+                showError("Please select or drag a valid .CSV dataset file to process.");
+                return;
+            }
+
+            const file = datasetFileInput.files[0];
+            if (!file.name.toLowerCase().endsWith('.csv')) {
+                showError("Security Restriction: Only authentic .CSV dataset files are allowed.");
+                return;
+            }
+
+            const selectedModel = document.querySelector('input[name="upload_model"]:checked').value;
+            const formData = new FormData();
+            formData.append('dataset_file', file);
+            formData.append('model', selectedModel);
+
+            uploadBtn.disabled = true;
+            uploadSpinner.classList.remove('hidden');
+
+            try {
+                const response = await fetch('/upload_dataset', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (!response.ok || !data.success) {
+                    throw new Error(data.error || "Batch processing failed.");
+                }
+
+                renderBatchResults(data);
+
+            } catch (err) {
+                showError(err.message);
+                batchResultsSection.classList.add('hidden');
+            } finally {
+                uploadBtn.disabled = false;
+                uploadSpinner.classList.add('hidden');
+            }
+        });
+    }
+
+    function renderBatchResults(data) {
+        batchCount.textContent = data.total_processed;
+        batchAvgLatency.textContent = `${data.avg_latency_ms} ms / pair avg (${data.execution_mode})`;
+        
+        const now = new Date();
+        batchTimestamp.textContent = `Processed at ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+
+        batchTableBody.innerHTML = '';
+        data.results.forEach(row => {
+            const tr = document.createElement('tr');
+            const isSimilar = row.predicted === 'Similar';
+            const badgeClass = isSimilar ? 'badge-similar' : 'badge-not-similar';
+            
+            tr.innerHTML = `
+                <td><strong>${row.id}</strong></td>
+                <td>${escapeHtml(row.sentence_a)}</td>
+                <td>${escapeHtml(row.sentence_b)}</td>
+                <td><strong style="color: var(--accent-blue); font-family: 'JetBrains Mono', monospace;">${row.similarity_pct}</strong></td>
+                <td><span class="badge ${badgeClass}" style="font-size: 0.8rem; padding: 2px 8px;">${row.predicted.toUpperCase()}</span></td>
+            `;
+            batchTableBody.appendChild(tr);
+        });
+
+        batchResultsSection.classList.remove('hidden');
+        batchResultsSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+});
+
 });

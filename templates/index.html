@@ -11,10 +11,8 @@
     <!-- CSS Stylesheet (Flask & Direct File Compatibility) -->
     <link rel="stylesheet" href="../static/css/style.css">
     <script>
-        // Automatic Flask / Direct File Path Fix
         try {
             if (window.location.protocol.startsWith('http')) {
-                // If running on Flask server
                 const link = document.createElement('link');
                 link.rel = 'stylesheet';
                 link.href = '/static/css/style.css';
@@ -53,8 +51,20 @@
             </div>
         </header>
 
+        <!-- Mode Navigation Tabs -->
+        <div class="mode-tabs">
+            <button id="tabSingleMode" class="tab-btn active">
+                <span>💬 Single Pair Comparison</span>
+            </button>
+            <button id="tabBatchMode" class="tab-btn">
+                <span>📁 Secure Dataset Upload (.CSV)</span>
+                <span class="secure-badge">🛡️ 5 Shields</span>
+            </button>
+        </div>
+
         <!-- Main Workspace -->
         <main class="main-content">
+            <!-- Mode 1: Single Pair Form -->
             <form id="compareForm" class="compare-form" novalidate>
                 <!-- Controls & Preset Chips Toolbar -->
                 <div class="toolbar">
@@ -165,13 +175,60 @@
                 </div>
             </form>
 
+            <!-- Mode 2: Secure CSV Upload View -->
+            <form id="uploadForm" class="upload-form hidden" novalidate>
+                <div class="security-banner">
+                    <div class="security-header">
+                        <span>🛡️ Production Security Architecture (5 Active Shields)</span>
+                    </div>
+                    <div class="security-tags">
+                        <span class="sec-tag">🔒 Max 5MB Limit (Anti-DoS)</span>
+                        <span class="sec-tag">🛡️ Path Traversal Sanitized</span>
+                        <span class="sec-tag">⚡ Formula Injection Escaped</span>
+                        <span class="sec-tag">📄 Strict Schema Validation</span>
+                    </div>
+                </div>
+
+                <div class="upload-dropzone" id="uploadDropzone">
+                    <div class="dropzone-content">
+                        <div class="upload-icon">📁</div>
+                        <h3>Upload Custom STS Dataset (.CSV)</h3>
+                        <p class="dropzone-hint">Drag and drop your dataset file here, or click to browse</p>
+                        <input type="file" id="datasetFileInput" name="dataset_file" accept=".csv" class="hidden">
+                        <button type="button" id="browseFileBtn" class="btn btn-secondary">Browse Files</button>
+                        <span id="selectedFileName" class="selected-file-name hidden">No file selected</span>
+                    </div>
+                </div>
+
+                <div class="config-row">
+                    <div class="model-selection">
+                        <span class="model-label">Select Batch Engine:</span>
+                        <div class="radio-group">
+                            <label class="radio-card">
+                                <input type="radio" name="upload_model" value="local" checked>
+                                <span class="radio-title">Local CPU Batch</span>
+                            </label>
+                            <label class="radio-card">
+                                <input type="radio" name="upload_model" value="api">
+                                <span class="radio-title">Gemini API Batch</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <button type="submit" id="uploadBtn" class="btn btn-primary btn-large">
+                        <span class="btn-text">Process Dataset Batch</span>
+                        <span class="spinner hidden" id="uploadSpinner"></span>
+                    </button>
+                </div>
+            </form>
+
             <!-- Error Banner -->
             <div id="errorAlert" class="alert alert-danger hidden" role="alert">
                 <span class="alert-icon">⚠️</span>
                 <span id="errorMessage" class="alert-text">An error occurred.</span>
             </div>
 
-            <!-- Output Results Section -->
+            <!-- Single Result Card -->
             <section id="resultsSection" class="results-container hidden">
                 <div class="results-card">
                     <div class="results-header">
@@ -185,7 +242,6 @@
                     </div>
 
                     <div class="results-grid">
-                        <!-- Score Ring Gauge -->
                         <div class="metric-card score-card">
                             <span class="metric-title">Cosine Similarity</span>
                             <div class="gauge-wrapper">
@@ -199,7 +255,6 @@
                             </div>
                         </div>
 
-                        <!-- Prediction Badge -->
                         <div class="metric-card">
                             <span class="metric-title">Binary Class Prediction</span>
                             <div class="prediction-badge-wrapper">
@@ -208,13 +263,11 @@
                             </div>
                         </div>
 
-                        <!-- Execution Mode -->
                         <div class="metric-card">
                             <span class="metric-title">Active Embedding Engine</span>
                             <span id="executionModeTag" class="info-tag">--</span>
                         </div>
 
-                        <!-- Latency -->
                         <div class="metric-card">
                             <span class="metric-title">Inference Speed</span>
                             <span id="latencyTag" class="info-tag latency-tag">-- ms</span>
@@ -228,26 +281,52 @@
                         </div>
                         <div class="vector-graphic-box">
                             <svg width="100%" height="90" viewBox="0 0 600 90" preserveAspectRatio="xMidYMid meet">
-                                <!-- Vector A Line -->
                                 <line x1="50" y1="65" x2="250" y2="25" stroke="#3b82f6" stroke-width="3" stroke-linecap="round" />
                                 <circle cx="250" cy="25" r="6" fill="#3b82f6" />
                                 <text x="45" y="80" fill="#3b82f6" font-size="11" font-weight="600">Vector A</text>
 
-                                <!-- Vector B Line -->
                                 <line x1="50" y1="65" x2="350" y2="35" stroke="#8b5cf6" stroke-width="3" stroke-linecap="round" />
                                 <circle cx="350" cy="35" r="6" fill="#8b5cf6" />
                                 <text x="355" y="50" fill="#8b5cf6" font-size="11" font-weight="600">Vector B</text>
 
-                                <!-- Cosine Angle Arc -->
                                 <path d="M 100 55 A 40 40 0 0 1 115 58" fill="none" stroke="#10b981" stroke-width="2.5" stroke-dasharray="3,3" />
                                 <text x="125" y="65" fill="#10b981" font-size="12" font-weight="700">Cosine Angle θ</text>
 
-                                <!-- Dot Product Formula -->
                                 <rect x="440" y="20" width="145" height="50" rx="8" fill="rgba(59, 130, 246, 0.08)" stroke="rgba(59, 130, 246, 0.2)" />
                                 <text x="512" y="42" text-anchor="middle" fill="currentColor" font-size="11" font-weight="600">cos(θ) = (A · B) / (||A|| ||B||)</text>
                                 <text x="512" y="58" text-anchor="middle" fill="#10b981" font-size="11" font-weight="700" id="svgScoreText">Score: 0.00</text>
                             </svg>
                         </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Batch Results Table -->
+            <section id="batchResultsSection" class="results-container hidden">
+                <div class="results-card">
+                    <div class="results-header">
+                        <div class="results-header-title">
+                            <h2>Dataset Batch Results (<span id="batchCount">0</span> rows)</h2>
+                            <span class="result-timestamp" id="batchTimestamp">--</span>
+                        </div>
+                        <span id="batchAvgLatency" class="info-tag latency-tag">-- ms avg</span>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="batch-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Sentence A</th>
+                                    <th>Sentence B</th>
+                                    <th>Similarity Score</th>
+                                    <th>Prediction</th>
+                                </tr>
+                            </thead>
+                            <tbody id="batchTableBody">
+                                <!-- Dynamic rows -->
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </section>

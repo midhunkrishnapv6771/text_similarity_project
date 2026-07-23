@@ -1,15 +1,17 @@
 import os
 import sys
 import time
+import io
+import pandas as pd
 from flask import Flask, render_template, request, jsonify
+from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
 
 import config
-from semantic_local import evaluate_single_pair_local
+from semantic_local import evaluate_single_pair_local, load_local_model, calculate_cosine_similarity
 from semantic_api import (
     get_gemini_client,
     get_gemini_embedding,
-    calculate_cosine_similarity,
     get_current_model_name
 )
 
@@ -19,6 +21,22 @@ if sys.stdout.encoding and sys.stdout.encoding.lower() != 'utf-8':
 load_dotenv()
 
 app = Flask(__name__)
+# Security Shield 1: Strict 5MB File Size Limit (Prevents Memory Bomb DoS)
+app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024
+
+ALLOWED_EXTENSIONS = {'csv'}
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+# Security Shield 2: CSV Formula Injection Sanitizer
+def sanitize_text(val):
+    if not isinstance(val, str):
+        return str(val)
+    val = val.strip()
+    if val.startswith(('=', '+', '-', '@', '|', '%')):
+        val = "'" + val  # Escape formula prefix
+    return val
 
 @app.route('/')
 def index():
@@ -29,8 +47,8 @@ def index():
 def compare():
     try:
         data = request.get_json(silent=True) or request.form
-        sentence_a = (data.get('sentence_a') or '').strip()
-        sentence_b = (data.get('sentence_b') or '').strip()
+        sentence_a = sanitize_text(data.get('sentence_a') or '')
+        sentence_b = sanitize_text(data.get('sentence_b') or '')
         model_choice = (data.get('model') or 'local').strip().lower()
 
         if not sentence_a or not sentence_b:
@@ -65,14 +83,13 @@ def compare():
             latency_ms = (time.time() - start_time) * 1000
             predicted = "Similar" if score >= threshold else "Not Similar"
             current_model = get_current_model_name()
-            execution_mode = f"Gemini API ({current_model})"
 
             return jsonify({
                 'success': True,
                 'score': round(score, 4),
                 'similarity_pct': f"{score * 100:.2f}%",
                 'predicted': predicted,
-                'execution_mode': execution_mode,
+                'execution_mode': f"Gemini API ({current_model})",
                 'latency_ms': round(latency_ms, 2),
                 'model_used': current_model,
                 'threshold': threshold
@@ -99,6 +116,107 @@ def compare():
             'success': False,
             'error': f"An unexpected error occurred during similarity evaluation: {str(err)}"
         }), 500
+
+@app.route('/upload_dataset', methods=['POST'])
+def upload_dataset():
+    """Secure Dataset Upload Endpoint with 5 Security Shields"""
+    try:
+        # Security Shield 3: File existence validation
+        if 'dataset_file' not in request.files:
+            return jsonify({'success': False, 'error': 'No file uploaded. Please select a .csv dataset file.'}), 400
+
+        file = request.files['dataset_file']
+        if file.filename == '':
+            return jsonify({'success': False, 'error': 'Empty filename selected.'}), 400
+
+        # Security Shield 4: Extension & Path Traversal Validation
+        if not allowed_file(file.filename):
+            return jsonify({'success': False, 'error': 'Security Violation: Only authentic .csv files are allowed.'}), 400
+
+        filename = secure_filename(file.filename)
+        model_choice = (request.form.get('model') or 'local').strip().lower()
+
+        # Security Shield 5: Strict CSV Parsing & Schema Validation
+        try:
+            df = pd.read_csv(io.StringIO(file.stream.read().decode('utf-8', errors='ignore')))
+        except Exception as e_parse:
+            return jsonify({'success': False, 'error': f'Invalid CSV format: {str(e_parse)}'}), 400
+
+        # Validate required columns
+        cols = [c.lower().strip() for c in df.columns]
+        if 'sentence_a' not in cols or 'sentence_b' not in cols:
+            return jsonify({
+                'success': False,
+                'error': 'CSV Schema Error: Dataset must contain "sentence_a" and "sentence_b" headers.'
+            }), 400
+
+        # Map back case-insensitive headers
+        col_map = {c.lower().strip(): c for c in df.columns}
+        col_a = col_map['sentence_a']
+        col_b = col_map['sentence_b']
+
+        # Limit batch processing to max 50 rows for safety
+        df_batch = df.head(50).copy()
+        threshold = getattr(config, 'SIMILARITY_THRESHOLD', 0.70)
+        
+        results = []
+        start_batch_time = time.time()
+
+        if model_choice == 'api':
+            client, sdk_type = get_gemini_client()
+            if not client:
+                return jsonify({'success': False, 'error': 'Gemini API connection unavailable.'}), 503
+            
+            for idx, row in df_batch.iterrows():
+                sa = sanitize_text(str(row[col_a]))
+                sb = sanitize_text(str(row[col_b]))
+                emb_a = get_gemini_embedding(sa, client, sdk_type)
+                emb_b = get_gemini_embedding(sb, client, sdk_type)
+                score = max(0.0, min(1.0, float(calculate_cosine_similarity(emb_a, emb_b))))
+                pred = "Similar" if score >= threshold else "Not Similar"
+                results.append({
+                    'id': idx + 1,
+                    'sentence_a': sa,
+                    'sentence_b': sb,
+                    'score': round(score, 4),
+                    'similarity_pct': f"{score * 100:.2f}%",
+                    'predicted': pred
+                })
+        else:
+            model = load_local_model()
+            all_a = [sanitize_text(str(r[col_a])) for _, r in df_batch.iterrows()]
+            all_b = [sanitize_text(str(r[col_b])) for _, r in df_batch.iterrows()]
+            
+            embs = model.encode(all_a + all_b, batch_size=32, show_progress_bar=False, convert_to_numpy=True)
+            embs_a = embs[:len(df_batch)]
+            embs_b = embs[len(df_batch):]
+
+            for idx in range(len(df_batch)):
+                score = max(0.0, min(1.0, float(calculate_cosine_similarity(embs_a[idx], embs_b[idx]))))
+                pred = "Similar" if score >= threshold else "Not Similar"
+                results.append({
+                    'id': idx + 1,
+                    'sentence_a': all_a[idx],
+                    'sentence_b': all_b[idx],
+                    'score': round(score, 4),
+                    'similarity_pct': f"{score * 100:.2f}%",
+                    'predicted': pred
+                })
+
+        total_latency = (time.time() - start_batch_time) * 1000
+        avg_latency = total_latency / len(results) if results else 0
+
+        return jsonify({
+            'success': True,
+            'filename': filename,
+            'total_processed': len(results),
+            'results': results,
+            'avg_latency_ms': round(avg_latency, 2),
+            'execution_mode': 'Gemini API' if model_choice == 'api' else 'Local CPU'
+        })
+
+    except Exception as err:
+        return jsonify({'success': False, 'error': f'Batch processing failed: {str(err)}'}), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
