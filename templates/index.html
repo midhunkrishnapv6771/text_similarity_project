@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Semantic Text Similarity Engine</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-brand">
+                <div class="logo-icon">⚡</div>
+                <div>
+                    <h1>Semantic Text Similarity</h1>
+                    <p class="subtitle">Real-time NLP Embedding Benchmark & Evaluation Platform</p>
+                </div>
+            </div>
+            <div class="header-actions">
+                <button id="themeToggleBtn" class="icon-btn" title="Toggle Dark/Light Mode" aria-label="Toggle Dark Mode">
+                    <span class="theme-icon">🌙</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Workspace -->
+        <main class="main-content">
+            <form id="compareForm" class="compare-form" novalidate>
+                <!-- Controls Toolbar -->
+                <div class="toolbar">
+                    <div class="sample-picker">
+                        <label for="exampleSelect">Try Example Pair:</label>
+                        <select id="exampleSelect" class="form-select">
+                            <option value="" disabled selected>-- Select Preset Pair --</option>
+                            <option value="1">1. High Similarity: Plane taking off</option>
+                            <option value="2">2. Medium Similarity: Cooking food</option>
+                            <option value="3">3. Low Similarity: Different activities</option>
+                            <option value="4">4. Complex Paraphrase: Financial market</option>
+                        </select>
+                    </div>
+
+                    <button type="button" id="swapBtn" class="btn btn-secondary icon-text-btn" title="Swap Sentence A and Sentence B">
+                        <span>🔄 Swap Sentences</span>
+                    </button>
+                </div>
+
+                <!-- Input Textareas Grid -->
+                <div class="input-grid">
+                    <!-- Sentence A -->
+                    <div class="input-card">
+                        <div class="input-card-header">
+                            <label for="sentenceA">Sentence A</label>
+                            <span class="char-count" id="charCountA">0 chars</span>
+                        </div>
+                        <textarea 
+                            id="sentenceA" 
+                            name="sentence_a" 
+                            class="form-control" 
+                            rows="5" 
+                            placeholder="Enter or paste the first sentence here..." 
+                            required></textarea>
+                    </div>
+
+                    <!-- Sentence B -->
+                    <div class="input-card">
+                        <div class="input-card-header">
+                            <label for="sentenceB">Sentence B</label>
+                            <span class="char-count" id="charCountB">0 chars</span>
+                        </div>
+                        <textarea 
+                            id="sentenceB" 
+                            name="sentence_b" 
+                            class="form-control" 
+                            rows="5" 
+                            placeholder="Enter or paste the second sentence here..." 
+                            required></textarea>
+                    </div>
+                </div>
+
+                <!-- Model Selection & Submission Row -->
+                <div class="config-row">
+                    <div class="model-selection">
+                        <span class="model-label">Embedding Model Engine:</span>
+                        <div class="radio-group">
+                            <label class="radio-card">
+                                <input type="radio" name="model" value="local" checked>
+                                <div class="radio-content">
+                                    <span class="radio-title">Local Model</span>
+                                    <span class="radio-desc">Open-Source Sentence-Transformers (all-MiniLM-L6-v2)</span>
+                                </div>
+                            </label>
+
+                            <label class="radio-card">
+                                <input type="radio" name="model" value="api">
+                                <div class="radio-content">
+                                    <span class="radio-title">Gemini API</span>
+                                    <span class="radio-desc">Google Cloud Gemini Embedding API (429 Failover)</span>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="submit-action">
+                        <button type="submit" id="compareBtn" class="btn btn-primary btn-large">
+                            <span class="btn-text">Compare Sentences</span>
+                            <span class="spinner hidden" id="loadingSpinner"></span>
+                        </button>
+                        <span class="keyboard-hint">Shortcut: <kbd>Ctrl</kbd> + <kbd>Enter</kbd></span>
+                    </div>
+                </div>
+            </form>
+
+            <!-- Error Banner -->
+            <div id="errorAlert" class="alert alert-danger hidden" role="alert">
+                <span class="alert-icon">⚠️</span>
+                <span id="errorMessage" class="alert-text">An error occurred.</span>
+            </div>
+
+            <!-- Output Results Section -->
+            <section id="resultsSection" class="results-container hidden">
+                <div class="results-card">
+                    <div class="results-header">
+                        <h2>Semantic Evaluation Result</h2>
+                        <button id="copyResultBtn" class="btn btn-secondary btn-sm" title="Copy Result to Clipboard">
+                            📋 Copy Result
+                        </button>
+                    </div>
+
+                    <div class="results-grid">
+                        <!-- Score Display -->
+                        <div class="metric-card score-card">
+                            <span class="metric-title">Similarity Score</span>
+                            <div class="score-display">
+                                <span id="scorePct" class="score-value">0.00%</span>
+                                <div class="progress-bar-bg">
+                                    <div id="scoreProgressBar" class="progress-bar-fill" style="width: 0%;"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Prediction Display -->
+                        <div class="metric-card">
+                            <span class="metric-title">Prediction</span>
+                            <div class="prediction-badge-wrapper">
+                                <span id="predictionBadge" class="badge badge-similar">--</span>
+                                <span class="threshold-note">Threshold: &ge; {{ threshold_pct }}</span>
+                            </div>
+                        </div>
+
+                        <!-- Execution Mode Display -->
+                        <div class="metric-card">
+                            <span class="metric-title">Execution Mode</span>
+                            <span id="executionModeTag" class="info-tag">--</span>
+                        </div>
+
+                        <!-- Latency Display -->
+                        <div class="metric-card">
+                            <span class="metric-title">Latency</span>
+                            <span id="latencyTag" class="info-tag latency-tag">-- ms</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="app-footer">
+            <p>Dual Mode Platform: <strong>Flask Web App Interface</strong> &bull; <strong>Research Evaluation Engine</strong> (<code>evaluator.py</code>)</p>
+        </footer>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
