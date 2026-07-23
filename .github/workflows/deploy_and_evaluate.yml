@@ -7,8 +7,16 @@ on:
     - cron: '0 0 * * *'  # Daily midnight UTC run
   workflow_dispatch:
     inputs:
+      custom_sentence_a:
+        description: 'Temporary Sentence A (Leave blank for full dataset benchmark)'
+        required: false
+        default: ''
+      custom_sentence_b:
+        description: 'Temporary Sentence B (Leave blank for full dataset benchmark)'
+        required: false
+        default: ''
       sample_count:
-        description: 'Number of sample test cases to evaluate'
+        description: 'Number of sample dataset cases to evaluate (if not testing custom pair)'
         required: false
         default: '50'
 
@@ -21,7 +29,7 @@ jobs:
   benchmark-and-test:
     name: Run PyTorch STS Evaluation (7GB RAM Runner)
     runs-on: ubuntu-latest
-    timeout-minutes: 10  # Hard 10-min safety timeout (prevents 6-hour hangs & saves minutes)
+    timeout-minutes: 10  # Hard 10-min safety timeout (prevents hangs & saves minutes)
 
     steps:
       - name: Checkout Code
@@ -46,13 +54,20 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run Benchmark Evaluation
+      - name: Evaluate Custom Pair or Dataset Benchmark
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          SENTENCE_A: ${{ github.event.inputs.custom_sentence_a }}
+          SENTENCE_B: ${{ github.event.inputs.custom_sentence_b }}
           SAMPLE_SIZE: ${{ github.event.inputs.sample_count || '50' }}
         run: |
-          echo "[+] Executing evaluation benchmark with $SAMPLE_SIZE test samples..."
-          python evaluator.py --sample $SAMPLE_SIZE
+          if [ -n "$SENTENCE_A" ] && [ -n "$SENTENCE_B" ]; then
+            echo "[+] Running PyTorch Local Model Single Pair Test on 7GB RAM GitHub Runner..."
+            python semantic_local.py --text1 "$SENTENCE_A" --text2 "$SENTENCE_B"
+          else
+            echo "[+] Executing evaluation benchmark with $SAMPLE_SIZE test samples..."
+            python evaluator.py --sample $SAMPLE_SIZE
+          fi
 
       - name: Upload Results Artifacts
         uses: actions/upload-artifact@v4
