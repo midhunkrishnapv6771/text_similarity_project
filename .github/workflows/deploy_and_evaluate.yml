@@ -54,24 +54,34 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Evaluate Custom Pair or Dataset Benchmark
+      - name: Run semantic_local.py (PyTorch Local Model)
         env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           SENTENCE_A: ${{ github.event.inputs.custom_sentence_a }}
           SENTENCE_B: ${{ github.event.inputs.custom_sentence_b }}
           SAMPLE_SIZE: ${{ github.event.inputs.sample_count || '50' }}
         run: |
           if [ -n "$SENTENCE_A" ] && [ -n "$SENTENCE_B" ]; then
-            echo "[+] Running PyTorch Local Model Single Pair Test on 7GB RAM GitHub Runner..."
+            echo "[+] Executing Single Pair PyTorch Test..."
             python semantic_local.py --text1 "$SENTENCE_A" --text2 "$SENTENCE_B"
           else
-            echo "[+] Step 1: Running Local PyTorch Model ($SAMPLE_SIZE samples)..."
+            echo "[+] Executing PyTorch Local Model on $SAMPLE_SIZE samples..."
             python semantic_local.py --sample $SAMPLE_SIZE
-            echo "[+] Step 2: Running Gemini API Model ($SAMPLE_SIZE samples)..."
-            python semantic_api.py --sample $SAMPLE_SIZE
-            echo "[+] Step 3: Generating Comprehensive Benchmark Report..."
-            python evaluator.py
           fi
+
+      - name: Run semantic_api.py (Gemini API Model)
+        if: ${{ !github.event.inputs.custom_sentence_a }}
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          SAMPLE_SIZE: ${{ github.event.inputs.sample_count || '50' }}
+        run: |
+          echo "[+] Executing Gemini API Model on $SAMPLE_SIZE samples..."
+          python semantic_api.py --sample $SAMPLE_SIZE
+
+      - name: Run evaluator.py (Benchmark Report Generator)
+        if: ${{ !github.event.inputs.custom_sentence_a }}
+        run: |
+          echo "[+] Generating Comprehensive Benchmark Comparison Matrix..."
+          python evaluator.py
 
       - name: Upload Results Artifacts
         uses: actions/upload-artifact@v4
