@@ -21,8 +21,8 @@ if sys.stdout.encoding and sys.stdout.encoding.lower() != 'utf-8':
 load_dotenv()
 
 app = Flask(__name__)
-# Security Shield 1: Strict 5MB File Size Limit (Prevents Memory Bomb DoS)
-app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024
+# Security Shield 1: Strict 10MB File Size Limit
+app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024
 
 ALLOWED_EXTENSIONS = {'csv'}
 
@@ -119,9 +119,8 @@ def compare():
 
 @app.route('/upload_dataset', methods=['POST'])
 def upload_dataset():
-    """Secure Dataset Upload Endpoint with 5 Security Shields"""
+    """Secure Dataset Upload Endpoint with Full Results CSV Export Support"""
     try:
-        # Security Shield 3: File existence validation
         if 'dataset_file' not in request.files:
             return jsonify({'success': False, 'error': 'No file uploaded. Please select a .csv dataset file.'}), 400
 
@@ -129,20 +128,17 @@ def upload_dataset():
         if file.filename == '':
             return jsonify({'success': False, 'error': 'Empty filename selected.'}), 400
 
-        # Security Shield 4: Extension & Path Traversal Validation
         if not allowed_file(file.filename):
             return jsonify({'success': False, 'error': 'Security Violation: Only authentic .csv files are allowed.'}), 400
 
         filename = secure_filename(file.filename)
         model_choice = (request.form.get('model') or 'local').strip().lower()
 
-        # Security Shield 5: Strict CSV Parsing & Schema Validation
         try:
             df = pd.read_csv(io.StringIO(file.stream.read().decode('utf-8', errors='ignore')))
         except Exception as e_parse:
             return jsonify({'success': False, 'error': f'Invalid CSV format: {str(e_parse)}'}), 400
 
-        # Validate required columns
         cols = [c.lower().strip() for c in df.columns]
         if 'sentence_a' not in cols or 'sentence_b' not in cols:
             return jsonify({
@@ -150,13 +146,12 @@ def upload_dataset():
                 'error': 'CSV Schema Error: Dataset must contain "sentence_a" and "sentence_b" headers.'
             }), 400
 
-        # Map back case-insensitive headers
         col_map = {c.lower().strip(): c for c in df.columns}
         col_a = col_map['sentence_a']
         col_b = col_map['sentence_b']
 
-        # Limit batch processing to max 50 rows for safety
-        df_batch = df.head(50).copy()
+        # Process up to 500 rows in full
+        df_batch = df.head(500).copy()
         threshold = getattr(config, 'SIMILARITY_THRESHOLD', 0.70)
         
         results = []
@@ -210,7 +205,8 @@ def upload_dataset():
             'success': True,
             'filename': filename,
             'total_processed': len(results),
-            'results': results,
+            'results': results,  # Full dataset results array for CSV download
+            'preview_results': results[:50],  # UI table preview (first 50)
             'avg_latency_ms': round(avg_latency, 2),
             'execution_mode': 'Gemini API' if model_choice == 'api' else 'Local CPU'
         })

@@ -306,11 +306,21 @@
                 <div class="results-card">
                     <div class="results-header">
                         <div class="results-header-title">
-                            <h2>Dataset Batch Results (<span id="batchCount">0</span> rows)</h2>
+                            <h2>Dataset Batch Results (<span id="batchCount">0</span> rows evaluated)</h2>
                             <span class="result-timestamp" id="batchTimestamp">--</span>
                         </div>
-                        <span id="batchAvgLatency" class="info-tag latency-tag">-- ms avg</span>
+                        <div class="results-header-actions" style="display: flex; align-items: center; gap: 1rem;">
+                            <span id="batchAvgLatency" class="info-tag latency-tag">-- ms avg</span>
+                            <button id="downloadFullCsvBtn" class="btn btn-secondary btn-sm" title="Download Complete Processed CSV File">
+                                📥 Download Full Results (.CSV)
+                            </button>
+                        </div>
                     </div>
+
+                    <div class="table-preview-note" style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem; padding: 4px 10px; background: var(--bg-card-alt); border-radius: 6px; display: inline-block;">
+                        ℹ️ Displaying first <strong id="previewCount">50</strong> rows in UI table for fast rendering. Click <strong>"Download Full Results"</strong> above to save the complete evaluated dataset CSV file.
+                    </div>
+
 
                     <div class="table-responsive">
                         <table class="batch-table">

@@ -376,16 +376,26 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    let latestBatchResults = [];
+    const downloadFullCsvBtn = document.getElementById('downloadFullCsvBtn');
+    const previewCount = document.getElementById('previewCount');
+
     function renderBatchResults(data) {
         if (!batchResultsSection) return;
+        latestBatchResults = data.results || [];
+        
         batchCount.textContent = data.total_processed;
+        if (previewCount) {
+            previewCount.textContent = Math.min(50, data.total_processed);
+        }
         batchAvgLatency.textContent = `${data.avg_latency_ms} ms / pair avg (${data.execution_mode})`;
         
         const now = new Date();
         batchTimestamp.textContent = `Processed at ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
 
+        const displayRows = data.preview_results || (data.results ? data.results.slice(0, 50) : []);
         batchTableBody.innerHTML = '';
-        data.results.forEach(row => {
+        displayRows.forEach(row => {
             const tr = document.createElement('tr');
             const isSimilar = row.predicted === 'Similar';
             const badgeClass = isSimilar ? 'badge-similar' : 'badge-not-similar';
@@ -403,6 +413,35 @@ document.addEventListener('DOMContentLoaded', () => {
         batchResultsSection.classList.remove('hidden');
         batchResultsSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
+
+    if (downloadFullCsvBtn) {
+        downloadFullCsvBtn.addEventListener('click', () => {
+            if (!latestBatchResults || latestBatchResults.length === 0) {
+                showError("No dataset results available to download.");
+                return;
+            }
+
+            // Generate CSV Header & Rows
+            let csvContent = "id,sentence_a,sentence_b,similarity_score,similarity_pct,predicted\n";
+            latestBatchResults.forEach(r => {
+                const sa = `"${r.sentence_a.replace(/"/g, '""')}"`;
+                const sb = `"${r.sentence_b.replace(/"/g, '""')}"`;
+                csvContent += `${r.id},${sa},${sb},${r.score},${r.similarity_pct},${r.predicted}\n`;
+            });
+
+            // Trigger Browser File Download
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.setAttribute('href', url);
+            link.setAttribute('download', `evaluated_sts_dataset_${Date.now()}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        });
+    }
+
 
     /* --------------------------------------------------------------------------
        8. General Helper Functions
