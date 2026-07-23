@@ -236,7 +236,6 @@ To deploy this Flask application to **[Render](https://render.com/)**:
 ## 👤 Author
 
 - **Developer**: Midhun Krishna ([@midhunkrishnapv6771](https://github.com/midhunkrishnapv6771))
-- *Single-Developer Independent Project*
 
 ---
 
