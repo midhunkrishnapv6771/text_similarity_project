@@ -1,11 +1,12 @@
 /* ==========================================================================
    Semantic Text Similarity Web App - JavaScript Controller
    Features: AJAX Comparison, Dark Mode, Character Counter, Preset Chips,
-             Sentence Swapping, Clipboard Copy, Keyboard Shortcuts, Vector SVG
+             Sentence Swapping, Clipboard Copy, Keyboard Shortcuts, Vector SVG,
+             Secure Dataset CSV Upload & Batch Processing
    ========================================================================== */
 
 document.addEventListener('DOMContentLoaded', () => {
-    // DOM Elements
+    // DOM Elements - Theme & Single Mode
     const themeToggleBtn = document.getElementById('themeToggleBtn');
     const themeIcon = themeToggleBtn.querySelector('.theme-icon');
     
@@ -31,6 +32,24 @@ document.addEventListener('DOMContentLoaded', () => {
     const copyResultBtn = document.getElementById('copyResultBtn');
     const svgScoreText = document.getElementById('svgScoreText');
     const resultTimestamp = document.getElementById('resultTimestamp');
+
+    // DOM Elements - Navigation Tabs & CSV Upload
+    const tabSingleMode = document.getElementById('tabSingleMode');
+    const tabBatchMode = document.getElementById('tabBatchMode');
+    const uploadForm = document.getElementById('uploadForm');
+
+    const uploadDropzone = document.getElementById('uploadDropzone');
+    const browseFileBtn = document.getElementById('browseFileBtn');
+    const datasetFileInput = document.getElementById('datasetFileInput');
+    const selectedFileName = document.getElementById('selectedFileName');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const uploadSpinner = document.getElementById('uploadSpinner');
+
+    const batchResultsSection = document.getElementById('batchResultsSection');
+    const batchCount = document.getElementById('batchCount');
+    const batchTimestamp = document.getElementById('batchTimestamp');
+    const batchAvgLatency = document.getElementById('batchAvgLatency');
+    const batchTableBody = document.getElementById('batchTableBody');
 
     // Preset Example Pairs
     const examplePairs = {
@@ -58,28 +77,32 @@ document.addEventListener('DOMContentLoaded', () => {
     const savedTheme = localStorage.getItem('theme') || 'light';
     setTheme(savedTheme);
 
-    themeToggleBtn.addEventListener('click', () => {
-        const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
-        const newTheme = currentTheme === 'light' ? 'dark' : 'light';
-        setTheme(newTheme);
-    });
+    if (themeToggleBtn) {
+        themeToggleBtn.addEventListener('click', () => {
+            const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            setTheme(newTheme);
+        });
+    }
 
     function setTheme(theme) {
         document.documentElement.setAttribute('data-theme', theme);
         localStorage.setItem('theme', theme);
-        themeIcon.textContent = theme === 'dark' ? '☀️' : '🌙';
+        if (themeIcon) {
+            themeIcon.textContent = theme === 'dark' ? '☀️' : '🌙';
+        }
     }
 
     /* --------------------------------------------------------------------------
        2. Character Counters
        -------------------------------------------------------------------------- */
     function updateCharCounts() {
-        charCountA.textContent = `${sentenceAInput.value.length} chars`;
-        charCountB.textContent = `${sentenceBInput.value.length} chars`;
+        if (charCountA && sentenceAInput) charCountA.textContent = `${sentenceAInput.value.length} chars`;
+        if (charCountB && sentenceBInput) charCountB.textContent = `${sentenceBInput.value.length} chars`;
     }
 
-    sentenceAInput.addEventListener('input', updateCharCounts);
-    sentenceBInput.addEventListener('input', updateCharCounts);
+    if (sentenceAInput) sentenceAInput.addEventListener('input', updateCharCounts);
+    if (sentenceBInput) sentenceBInput.addEventListener('input', updateCharCounts);
     updateCharCounts();
 
     /* --------------------------------------------------------------------------
@@ -93,81 +116,109 @@ document.addEventListener('DOMContentLoaded', () => {
                 sentenceBInput.value = examplePairs[presetId].b;
                 updateCharCounts();
                 hideError();
-                resultsSection.classList.add('hidden');
+                if (resultsSection) resultsSection.classList.add('hidden');
             }
         });
     });
 
-    swapBtn.addEventListener('click', () => {
-        const temp = sentenceAInput.value;
-        sentenceAInput.value = sentenceBInput.value;
-        sentenceBInput.value = temp;
-        updateCharCounts();
-    });
+    if (swapBtn) {
+        swapBtn.addEventListener('click', () => {
+            const temp = sentenceAInput.value;
+            sentenceAInput.value = sentenceBInput.value;
+            sentenceBInput.value = temp;
+            updateCharCounts();
+        });
+    }
 
     /* --------------------------------------------------------------------------
-       4. Keyboard Shortcut: Ctrl + Enter / Cmd + Enter
+       4. Mode Navigation Tabs Switching
+       -------------------------------------------------------------------------- */
+    if (tabSingleMode && tabBatchMode) {
+        tabSingleMode.addEventListener('click', (e) => {
+            e.preventDefault();
+            tabSingleMode.classList.add('active');
+            tabBatchMode.classList.remove('active');
+            if (compareForm) compareForm.classList.remove('hidden');
+            if (uploadForm) uploadForm.classList.add('hidden');
+            if (batchResultsSection) batchResultsSection.classList.add('hidden');
+            hideError();
+        });
+
+        tabBatchMode.addEventListener('click', (e) => {
+            e.preventDefault();
+            tabBatchMode.classList.add('active');
+            tabSingleMode.classList.remove('active');
+            if (uploadForm) uploadForm.classList.remove('hidden');
+            if (compareForm) compareForm.classList.add('hidden');
+            if (resultsSection) resultsSection.classList.add('hidden');
+            hideError();
+        });
+    }
+
+    /* --------------------------------------------------------------------------
+       5. Keyboard Shortcut: Ctrl + Enter / Cmd + Enter
        -------------------------------------------------------------------------- */
     [sentenceAInput, sentenceBInput].forEach(textarea => {
-        textarea.addEventListener('keydown', (e) => {
-            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-                e.preventDefault();
-                compareForm.dispatchEvent(new Event('submit', { cancelable: true }));
+        if (textarea) {
+            textarea.addEventListener('keydown', (e) => {
+                if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                    e.preventDefault();
+                    if (compareForm) compareForm.dispatchEvent(new Event('submit', { cancelable: true }));
+                }
+            });
+        }
+    });
+
+    /* --------------------------------------------------------------------------
+       6. Single Pair Form Submission
+       -------------------------------------------------------------------------- */
+    if (compareForm) {
+        compareForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            hideError();
+
+            const sentA = sentenceAInput.value.trim();
+            const sentB = sentenceBInput.value.trim();
+            const checkedRadio = document.querySelector('input[name="model"]:checked');
+            const selectedModel = checkedRadio ? checkedRadio.value : 'local';
+
+            if (!sentA || !sentB) {
+                showError("Both Sentence A and Sentence B are required. Please enter text into both input areas.");
+                return;
+            }
+
+            setLoadingSingle(true);
+
+            try {
+                const response = await fetch('/compare', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        sentence_a: sentA,
+                        sentence_b: sentB,
+                        model: selectedModel
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok || !data.success) {
+                    throw new Error(data.error || "Failed to calculate semantic similarity.");
+                }
+
+                renderSingleResults(data);
+
+            } catch (err) {
+                showError(err.message);
+                if (resultsSection) resultsSection.classList.add('hidden');
+            } finally {
+                setLoadingSingle(false);
             }
         });
-    });
+    }
 
-    /* --------------------------------------------------------------------------
-       5. AJAX Form Submission & Evaluation
-       -------------------------------------------------------------------------- */
-    compareForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        hideError();
-
-        const sentA = sentenceAInput.value.trim();
-        const sentB = sentenceBInput.value.trim();
-        const selectedModel = document.querySelector('input[name="model"]:checked').value;
-
-        if (!sentA || !sentB) {
-            showError("Both Sentence A and Sentence B are required. Please enter text into both input areas.");
-            return;
-        }
-
-        setLoading(true);
-
-        try {
-            const response = await fetch('/compare', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    sentence_a: sentA,
-                    sentence_b: sentB,
-                    model: selectedModel
-                })
-            });
-
-            const data = await response.json();
-
-            if (!response.ok || !data.success) {
-                throw new Error(data.error || "Failed to calculate semantic similarity.");
-            }
-
-            renderResults(data);
-
-        } catch (err) {
-            showError(err.message);
-            resultsSection.classList.add('hidden');
-        } finally {
-            setLoading(false);
-        }
-    });
-
-    /* --------------------------------------------------------------------------
-       6. Render Results & UI Helpers
-       -------------------------------------------------------------------------- */
-    function renderResults(data) {
+    function renderSingleResults(data) {
+        if (!resultsSection) return;
         scorePct.textContent = data.similarity_pct;
         
         const scoreVal = data.score * 100;
@@ -196,132 +247,72 @@ document.addEventListener('DOMContentLoaded', () => {
         resultsSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 
-    function setLoading(isLoading) {
+    function setLoadingSingle(isLoading) {
+        if (!compareBtn) return;
         if (isLoading) {
             compareBtn.disabled = true;
-            loadingSpinner.classList.remove('hidden');
-            compareBtn.querySelector('.btn-text').textContent = "Computing Embeddings...";
+            if (loadingSpinner) loadingSpinner.classList.remove('hidden');
+            const textSpan = compareBtn.querySelector('.btn-text');
+            if (textSpan) textSpan.textContent = "Computing Embeddings...";
         } else {
             compareBtn.disabled = false;
-            loadingSpinner.classList.add('hidden');
-            compareBtn.querySelector('.btn-text').textContent = "Compute Vector Similarity";
+            if (loadingSpinner) loadingSpinner.classList.add('hidden');
+            const textSpan = compareBtn.querySelector('.btn-text');
+            if (textSpan) textSpan.textContent = "Compute Vector Similarity";
         }
     }
 
-    function showError(msg) {
-        errorMessage.textContent = msg;
-        errorAlert.classList.remove('hidden');
-    }
-
-    function hideError() {
-        errorAlert.classList.add('hidden');
-    }
-
     /* --------------------------------------------------------------------------
-       7. Copy Result Button
+       7. CSV Dataset File Upload Handlers & Submission
        -------------------------------------------------------------------------- */
-    copyResultBtn.addEventListener('click', () => {
-        const textToCopy = `Semantic Similarity Evaluation:\n` +
-                           `Score: ${scorePct.textContent}\n` +
-                           `Prediction: ${predictionBadge.textContent}\n` +
-                           `Execution Mode: ${executionModeTag.textContent}\n` +
-                           `Latency: ${latencyTag.textContent}\n` +
-                           `Sentence A: "${sentenceAInput.value.trim()}"\n` +
-                           `Sentence B: "${sentenceBInput.value.trim()}"`;
-                           
-        navigator.clipboard.writeText(textToCopy).then(() => {
-            const originalText = copyResultBtn.textContent;
-            copyResultBtn.textContent = "✅ Copied!";
-            setTimeout(() => {
-                copyResultBtn.textContent = originalText;
-            }, 2000);
-        }).catch(err => {
-            console.error("Clipboard copy failed:", err);
-        });
-    });
-
-    /* --------------------------------------------------------------------------
-       8. Tab Navigation & Secure CSV File Upload
-       -------------------------------------------------------------------------- */
-    const tabSingleMode = document.getElementById('tabSingleMode');
-    const tabBatchMode = document.getElementById('tabBatchMode');
-    const uploadForm = document.getElementById('uploadForm');
-
-    const uploadDropzone = document.getElementById('uploadDropzone');
-    const browseFileBtn = document.getElementById('browseFileBtn');
-    const datasetFileInput = document.getElementById('datasetFileInput');
-    const selectedFileName = document.getElementById('selectedFileName');
-    const uploadBtn = document.getElementById('uploadBtn');
-    const uploadSpinner = document.getElementById('uploadSpinner');
-
-    const batchResultsSection = document.getElementById('batchResultsSection');
-    const batchCount = document.getElementById('batchCount');
-    const batchTimestamp = document.getElementById('batchTimestamp');
-    const batchAvgLatency = document.getElementById('batchAvgLatency');
-    const batchTableBody = document.getElementById('batchTableBody');
-
-    if (tabSingleMode && tabBatchMode) {
-        tabSingleMode.addEventListener('click', () => {
-            tabSingleMode.classList.add('active');
-            tabBatchMode.classList.remove('active');
-            compareForm.classList.remove('hidden');
-            uploadForm.classList.add('hidden');
-            batchResultsSection.classList.add('hidden');
-            hideError();
-        });
-
-        tabBatchMode.addEventListener('click', () => {
-            tabBatchMode.classList.add('active');
-            tabSingleMode.classList.remove('active');
-            uploadForm.classList.remove('hidden');
-            compareForm.classList.add('hidden');
-            resultsSection.classList.add('hidden');
-            hideError();
-        });
-    }
-
     if (browseFileBtn && datasetFileInput) {
-        browseFileBtn.addEventListener('click', () => datasetFileInput.click());
-        uploadDropzone.addEventListener('click', (e) => {
-            if (e.target !== browseFileBtn) datasetFileInput.click();
+        browseFileBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            datasetFileInput.click();
         });
+
+        if (uploadDropzone) {
+            uploadDropzone.addEventListener('click', () => {
+                datasetFileInput.click();
+            });
+
+            ['dragenter', 'dragover'].forEach(eventName => {
+                uploadDropzone.addEventListener(eventName, (e) => {
+                    e.preventDefault();
+                    uploadDropzone.classList.add('dragover');
+                }, false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                uploadDropzone.addEventListener(eventName, (e) => {
+                    e.preventDefault();
+                    uploadDropzone.classList.remove('dragover');
+                }, false);
+            });
+
+            uploadDropzone.addEventListener('drop', (e) => {
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    datasetFileInput.files = files;
+                    showSelectedFile(files[0].name);
+                }
+            });
+        }
 
         datasetFileInput.addEventListener('change', () => {
             if (datasetFileInput.files.length > 0) {
-                selectedFileName.textContent = `Selected: ${datasetFileInput.files[0].name}`;
-                selectedFileName.classList.remove('hidden');
-            }
-        });
-
-        // Drag and drop handlers
-        ['dragenter', 'dragover'].forEach(eventName => {
-            uploadDropzone.addEventListener(eventName, (e) => {
-                e.preventDefault();
-                uploadDropzone.classList.add('dragover');
-            }, false);
-        });
-
-        ['dragleave', 'drop'].forEach(eventName => {
-            uploadDropzone.addEventListener(eventName, (e) => {
-                e.preventDefault();
-                uploadDropzone.classList.remove('dragover');
-            }, false);
-        });
-
-        uploadDropzone.addEventListener('drop', (e) => {
-            const dt = e.dataTransfer;
-            const files = dt.files;
-            if (files.length > 0) {
-                datasetFileInput.files = files;
-                selectedFileName.textContent = `Selected: ${files[0].name}`;
-                selectedFileName.classList.remove('hidden');
+                showSelectedFile(datasetFileInput.files[0].name);
             }
         });
     }
 
-    /* --------------------------------------------------------------------------
-       9. Batch CSV Upload Submission
-       -------------------------------------------------------------------------- */
+    function showSelectedFile(name) {
+        if (selectedFileName) {
+            selectedFileName.textContent = `Selected: ${name}`;
+            selectedFileName.classList.remove('hidden');
+        }
+    }
+
     if (uploadForm) {
         uploadForm.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -338,13 +329,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            const selectedModel = document.querySelector('input[name="upload_model"]:checked').value;
+            const checkedRadio = document.querySelector('input[name="upload_model"]:checked');
+            const selectedModel = checkedRadio ? checkedRadio.value : 'local';
+
             const formData = new FormData();
             formData.append('dataset_file', file);
             formData.append('model', selectedModel);
 
-            uploadBtn.disabled = true;
-            uploadSpinner.classList.remove('hidden');
+            setLoadingUpload(true);
 
             try {
                 const response = await fetch('/upload_dataset', {
@@ -362,15 +354,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
             } catch (err) {
                 showError(err.message);
-                batchResultsSection.classList.add('hidden');
+                if (batchResultsSection) batchResultsSection.classList.add('hidden');
             } finally {
-                uploadBtn.disabled = false;
-                uploadSpinner.classList.add('hidden');
+                setLoadingUpload(false);
             }
         });
     }
 
+    function setLoadingUpload(isLoading) {
+        if (!uploadBtn) return;
+        if (isLoading) {
+            uploadBtn.disabled = true;
+            if (uploadSpinner) uploadSpinner.classList.remove('hidden');
+            const textSpan = uploadBtn.querySelector('.btn-text');
+            if (textSpan) textSpan.textContent = "Processing Batch...";
+        } else {
+            uploadBtn.disabled = false;
+            if (uploadSpinner) uploadSpinner.classList.add('hidden');
+            const textSpan = uploadBtn.querySelector('.btn-text');
+            if (textSpan) textSpan.textContent = "Process Dataset Batch";
+        }
+    }
+
     function renderBatchResults(data) {
+        if (!batchResultsSection) return;
         batchCount.textContent = data.total_processed;
         batchAvgLatency.textContent = `${data.avg_latency_ms} ms / pair avg (${data.execution_mode})`;
         
@@ -397,11 +404,50 @@ document.addEventListener('DOMContentLoaded', () => {
         batchResultsSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 
+    /* --------------------------------------------------------------------------
+       8. General Helper Functions
+       -------------------------------------------------------------------------- */
+    function showError(msg) {
+        if (errorMessage && errorAlert) {
+            errorMessage.textContent = msg;
+            errorAlert.classList.remove('hidden');
+        }
+    }
+
+    function hideError() {
+        if (errorAlert) {
+            errorAlert.classList.add('hidden');
+        }
+    }
+
     function escapeHtml(text) {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
     }
-});
 
+    /* --------------------------------------------------------------------------
+       9. Copy Result Button
+       -------------------------------------------------------------------------- */
+    if (copyResultBtn) {
+        copyResultBtn.addEventListener('click', () => {
+            const textToCopy = `Semantic Similarity Evaluation:\n` +
+                               `Score: ${scorePct.textContent}\n` +
+                               `Prediction: ${predictionBadge.textContent}\n` +
+                               `Execution Mode: ${executionModeTag.textContent}\n` +
+                               `Latency: ${latencyTag.textContent}\n` +
+                               `Sentence A: "${sentenceAInput.value.trim()}"\n` +
+                               `Sentence B: "${sentenceBInput.value.trim()}"`;
+                               
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                const originalText = copyResultBtn.textContent;
+                copyResultBtn.textContent = "✅ Copied!";
+                setTimeout(() => {
+                    copyResultBtn.textContent = originalText;
+                }, 2000);
+            }).catch(err => {
+                console.error("Clipboard copy failed:", err);
+            });
+        });
+    }
 });
